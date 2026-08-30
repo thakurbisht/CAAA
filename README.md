@@ -1,5 +1,7 @@
 # Continuous Access Assurance Agent
 
+[![tests](https://github.com/thakurbisht/CAAA/actions/workflows/tests.yml/badge.svg)](https://github.com/thakurbisht/CAAA/actions/workflows/tests.yml)
+
 An independent, measured assurance control over a hybrid healthcare identity
 estate: Oracle HCM, on-premises Active Directory, Entra ID and an IGA platform.
 
