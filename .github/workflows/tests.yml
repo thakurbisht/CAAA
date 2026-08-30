@@ -1,0 +1,37 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install pytest
+
+      - name: Test suite
+        run: pytest tests/ -q
+
+      # The claims in the README are measurements, so the pipeline is run end
+      # to end on every push. A README that says 100% precision while the
+      # pipeline no longer runs is worse than no README.
+      - name: Full pipeline
+        run: python run_all.py --population 400 --days 120 --skip-tests
+
+      - name: Assert the headline metrics still hold
+        run: python scripts/check_metrics.py

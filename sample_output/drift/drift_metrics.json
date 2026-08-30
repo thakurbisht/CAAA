@@ -1,0 +1,116 @@
+{
+  "per_rule": [
+    {
+      "rule_id": "D1_RETAINED_ON_TRANSFER",
+      "basis": "OBSERVED_HISTORY",
+      "found": 3,
+      "coverage": 1.0,
+      "excluded": {},
+      "notes": [
+        "Transfers are derived by comparing consecutive HR extracts, not read from any field asserting a move. 17 transfers observed across 10 snapshots.",
+        "29 entitlements were identified as department-scoped by measuring how concentrated their holders are, rather than by matching a naming convention."
+      ],
+      "scored": true,
+      "expected": 3,
+      "true_positives": 3,
+      "false_positives": 0,
+      "missed": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_examples": [],
+      "missed_examples": [],
+      "injected": {
+        "planted_total": 12,
+        "planted_still_live": 3,
+        "caught": 3,
+        "recall_on_live": 1.0,
+        "note": "measured against planted faults the rule claims to have assessed: excludes workers since terminated (a leaver finding, not drift) and transfers inside the grace period (deliberately not yet judged)"
+      }
+    },
+    {
+      "rule_id": "D2_PEER_GROUP_OUTLIER",
+      "basis": "PEER_DISTRIBUTION",
+      "found": 0,
+      "coverage": 0.6207,
+      "excluded": {
+        "peer_group_too_small": 88
+      },
+      "notes": [
+        "88 workers sit in peer groups below 8 members and were not evaluated. In a group that small every member is an outlier by construction.",
+        "Severity is capped at MEDIUM for this rule. A statistical signal does not establish that access is wrong, only that it is unusual, and escalating it alongside deterministic findings would misrepresent how much argument it will take to defend."
+      ],
+      "scored": false,
+      "reason": "statistical signal; 'unusual' has no truth set, and a legitimate specialist is a correct outlier",
+      "subjects_flagged": 0,
+      "injected": {
+        "planted_total": 29,
+        "planted_still_live": 21,
+        "caught": 0,
+        "recall_on_live": 0.0,
+        "note": "measured against planted faults the rule claims to have assessed: excludes workers since terminated (a leaver finding, not drift) and transfers inside the grace period (deliberately not yet judged)"
+      }
+    },
+    {
+      "rule_id": "D3_DORMANT_ENTITLEMENT",
+      "basis": "USAGE_RECORD",
+      "found": 83,
+      "coverage": 1.0,
+      "excluded": {},
+      "notes": [
+        "Threshold is 180 days and is a policy choice, not a discovered value. Every finding restates it so the reader can judge the finding against their own standard."
+      ],
+      "scored": true,
+      "expected": 83,
+      "true_positives": 83,
+      "false_positives": 0,
+      "missed": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_examples": [],
+      "missed_examples": [],
+      "injected": {
+        "planted_total": 143,
+        "planted_still_live": 0,
+        "caught": 0,
+        "recall_on_live": null,
+        "note": "measured against planted faults the rule claims to have assessed: excludes workers since terminated (a leaver finding, not drift) and transfers inside the grace period (deliberately not yet judged)"
+      }
+    },
+    {
+      "rule_id": "D4_STANDING_BREAKGLASS",
+      "basis": "OBSERVED_HISTORY",
+      "found": 9,
+      "coverage": 1.0,
+      "excluded": {},
+      "notes": [
+        "Continuity is established over a 119-day window. A grant issued and surrendered between two snapshots is invisible to this check; the snapshot interval is the resolution limit."
+      ],
+      "scored": true,
+      "expected": 9,
+      "true_positives": 9,
+      "false_positives": 0,
+      "missed": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "false_positive_examples": [],
+      "missed_examples": [],
+      "injected": {
+        "planted_total": 9,
+        "planted_still_live": 7,
+        "caught": 7,
+        "recall_on_live": 1.0,
+        "note": "measured against planted faults the rule claims to have assessed: excludes workers since terminated (a leaver finding, not drift) and transfers inside the grace period (deliberately not yet judged)"
+      }
+    }
+  ],
+  "aggregate": {
+    "total_findings": 95,
+    "deterministic_findings": 95,
+    "statistical_findings": 0,
+    "worst_precision": 1.0,
+    "worst_recall": 1.0
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "link_scoring": {
+    "true_links": 283,
+    "false_links": 0,
+    "missed_links": 15,
+    "correctly_unlinked": 23,
+    "precision": 1.0,
+    "recall": 0.9497,
+    "f1": 0.9742,
+    "false_link_rate": 0.0
+  },
+  "account_typing": {
+    "correct": 411,
+    "incorrect": 0,
+    "accuracy": 1.0
+  },
+  "nhi_handling": {
+    "total": 90,
+    "correctly_typed": 90,
+    "wrongly_linked_to_a_human": 0
+  },
+  "cluster_status": {
+    "RESOLVED": 442,
+    "REVIEW": 23,
+    "UNRESOLVED": 15
+  },
+  "tier_distribution": {
+    "T1_EMPLOYEE_ID": 161,
+    "T2_UPN_LOCALPART": 104,
+    "T3_NAME_DEPT": 19,
+    "T4_NAME_FUZZY": 7,
+    "T5_ADMIN_DERIVED": 14
+  },
+  "false_link_examples": []
+}

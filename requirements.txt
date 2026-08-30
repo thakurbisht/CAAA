@@ -1,0 +1,6 @@
+# Runtime: none. The pipeline uses only the Python standard library.
+# This is deliberate — an assurance control that cannot be re-derived
+# without a dependency tree is harder to defend, not easier.
+
+# Development only:
+pytest>=7.0

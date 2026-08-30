@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+testenv/
+.pytest_cache/
+
+# Generated estates and outputs — reproducible from a seed, so not tracked.
+estate/
+estate_*/
+correlation_output/
+corr_*/
+reconciliation_output/
+drift_output/
+drift_*/
+
+# Sample metrics, committed so the README's numbers
+# can be checked without cloning and running the pipeline.
+!sample_output/

@@ -1,0 +1,174 @@
+{
+  "per_rule": [
+    {
+      "rule_id": "R1_LEAVER_NOT_DEPROVISIONED",
+      "expected": 15,
+      "found": 15,
+      "true_positives": 15,
+      "false_positives": 0,
+      "missed": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "coverage": 0.5896,
+      "population_examined": 283,
+      "population_total": 480,
+      "invisible_to_platform": 1,
+      "false_positive_examples": [],
+      "missed_examples": [],
+      "excluded": {
+        "no_confirmed_hr_link": 16,
+        "correlation_unconfirmed": 22
+      },
+      "notes": [
+        "16 accounts could not be checked: no HR link at all, so there is no authoritative termination date to test against.",
+        "22 accounts have a candidate HR link that did not reach the correlation acceptance threshold. Asserting a leaver finding on an unconfirmed link risks naming the wrong person, so these are reported as unassessed. They are not evidence of a clean estate."
+      ],
+      "injected": {
+        "planted": 14,
+        "caught": 14,
+        "recall_on_planted": 1.0,
+        "missed_examples": []
+      }
+    },
+    {
+      "rule_id": "R2_PLATFORM_STATE_DISAGREEMENT",
+      "expected": 12,
+      "found": 12,
+      "true_positives": 12,
+      "false_positives": 0,
+      "missed": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "coverage": 0.725,
+      "population_examined": 348,
+      "population_total": 480,
+      "invisible_to_platform": 12,
+      "false_positive_examples": [],
+      "missed_examples": [],
+      "excluded": {},
+      "notes": [
+        "By construction this rule has no equivalent inside the platform: it compares the platform's own record against an independent read of the directory."
+      ],
+      "injected": {
+        "planted": 15,
+        "caught": 12,
+        "recall_on_planted": 0.8,
+        "missed_examples": [
+          "amiller",
+          "faisal.chen",
+          "zainab.patel"
+        ]
+      }
+    },
+    {
+      "rule_id": "R3_ORPHANED_NHI",
+      "expected": 39,
+      "found": 39,
+      "true_positives": 39,
+      "false_positives": 0,
+      "missed": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "coverage": 1.0,
+      "population_examined": 90,
+      "population_total": 90,
+      "invisible_to_platform": 30,
+      "false_positive_examples": [],
+      "missed_examples": [],
+      "excluded": {},
+      "notes": [],
+      "injected": {
+        "planted": 23,
+        "caught": 23,
+        "recall_on_planted": 1.0,
+        "missed_examples": []
+      }
+    },
+    {
+      "rule_id": "R4_ORPHANED_ADMIN_ACCOUNT",
+      "expected": 6,
+      "found": 6,
+      "true_positives": 6,
+      "false_positives": 0,
+      "missed": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "coverage": 1.0,
+      "population_examined": 15,
+      "population_total": 15,
+      "invisible_to_platform": 5,
+      "false_positive_examples": [],
+      "missed_examples": [],
+      "excluded": {},
+      "notes": [],
+      "injected": {
+        "planted": 1,
+        "caught": 1,
+        "recall_on_planted": 1.0,
+        "missed_examples": []
+      }
+    },
+    {
+      "rule_id": "R5_SOD_VIOLATION",
+      "expected": 52,
+      "found": 52,
+      "true_positives": 52,
+      "false_positives": 0,
+      "missed": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "coverage": 0.7688,
+      "population_examined": 369,
+      "population_total": 480,
+      "invisible_to_platform": 29,
+      "false_positive_examples": [],
+      "missed_examples": [],
+      "excluded": {
+        "sod_rules_unreachable_from_platform": 2
+      },
+      "notes": [
+        "2 of 7 rules (SOD-CLIN-01, SOD-CLIN-02) reference applications the platform does not aggregate. Evaluated against platform data alone, these rules cannot return a violation regardless of what is held."
+      ],
+      "injected": {
+        "planted": 22,
+        "caught": 22,
+        "recall_on_planted": 1.0,
+        "missed_examples": []
+      }
+    },
+    {
+      "rule_id": "R6_COVERAGE_GAP",
+      "expected": 3,
+      "found": 3,
+      "true_positives": 3,
+      "false_positives": 0,
+      "missed": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "coverage": 0.5714,
+      "population_examined": 4,
+      "population_total": 7,
+      "invisible_to_platform": 3,
+      "false_positive_examples": [],
+      "missed_examples": [],
+      "excluded": {},
+      "notes": [
+        "Coverage here is measured over applications, not identities: an estate can be 100% enrolled by headcount and still leave whole applications ungoverned."
+      ]
+    }
+  ],
+  "aggregate": {
+    "rules_run": 6,
+    "total_findings": 127,
+    "findings_invisible_to_platform": 80,
+    "invisible_share": 0.6299,
+    "worst_precision": 1.0,
+    "worst_recall": 1.0
+  }
+}
