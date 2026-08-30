@@ -256,6 +256,96 @@ two numbers three lines apart in the same report that should have agreed. And
 the narrative validator's own regex never matched a percent sign, so it was
 rejecting figures it had itself supplied.
 
+cd /home/claude && cat > readme_addition.md << 'EOF'
+
+**Run against a real model.** Everything above was built against a scripted
+client. Run for the first time against `mistral-nemo:latest` on a local
+Ollama, three things came out of it.
+
+All 23 translations passed validation, and most were good — `PACS_ADMIN`
+came back as full administration of the Picture Archiving and Communication
+System, acronym expanded. One was wrong in a way that matters:
+`LIS_RESULT_AUTHORISE` was rendered as authorising access to *view*
+laboratory results. Authorising a result means releasing it into the clinical
+record; viewing it is passive. The model turned an active capability into a
+passive one, and that entitlement is one half of `SOD-CLIN-02` — a reviewer
+reading "view test results" approves it without pausing, which is the exact
+failure the segregation rule exists to prevent.
+
+The validator did not catch it. It checks that the application is right and
+that the risk language does not contradict the catalogue. Both were fine. **The
+checks establish where a claim came from, not whether it means the right
+thing** — and the second is the harder problem, still open. Until it is
+solved, a translation is a reading aid rather than a substitute for the code.
+
+The narrative passed validation and was worse than the fallback it replaced.
+Handed the permitted figures, the model returned all of them as a list and
+opened by describing 88.1% mean coverage across rules as covering "88.1% of
+its rules adequately", which is a different and false claim. Every number was
+one the pipeline produced, so the check passed. The computed fallback — four
+plain sentences — is the better output, and on a 12B local model the
+narration step currently earns nothing.
+
+The third finding was accidental and the most reassuring. The first run used a
+model name that did not exist, so every call returned 404. Translations fell
+back to templates, clustering fell back to grouping by rule, the narrative
+fell back to computed, and the pipeline produced its complete output. Total
+model failure cost readability and not one finding — tested for with a
+scripted client, then confirmed by a real outage.
+
+**A gap this exposed.** Clustering refuses inputs over 220 findings because
+beyond that omissions become frequent enough that the partition check rejects
+everything. A full-size estate produces 930. So on any realistic estate the
+clustering never reaches the model at all, and the limit that was meant to
+avoid a wasted call instead disables the feature. Batching by rule and
+clustering within each batch would fix it; that is not built.
+EOF
+cat readme_addition.md
+Output
+
+
+**Run against a real model.** Everything above was built against a scripted
+client. Run for the first time against `mistral-nemo:latest` on a local
+Ollama, three things came out of it.
+
+All 23 translations passed validation, and most were good — `PACS_ADMIN`
+came back as full administration of the Picture Archiving and Communication
+System, acronym expanded. One was wrong in a way that matters:
+`LIS_RESULT_AUTHORISE` was rendered as authorising access to *view*
+laboratory results. Authorising a result means releasing it into the clinical
+record; viewing it is passive. The model turned an active capability into a
+passive one, and that entitlement is one half of `SOD-CLIN-02` — a reviewer
+reading "view test results" approves it without pausing, which is the exact
+failure the segregation rule exists to prevent.
+
+The validator did not catch it. It checks that the application is right and
+that the risk language does not contradict the catalogue. Both were fine. **The
+checks establish where a claim came from, not whether it means the right
+thing** — and the second is the harder problem, still open. Until it is
+solved, a translation is a reading aid rather than a substitute for the code.
+
+The narrative passed validation and was worse than the fallback it replaced.
+Handed the permitted figures, the model returned all of them as a list and
+opened by describing 88.1% mean coverage across rules as covering "88.1% of
+its rules adequately", which is a different and false claim. Every number was
+one the pipeline produced, so the check passed. The computed fallback — four
+plain sentences — is the better output, and on a 12B local model the
+narration step currently earns nothing.
+
+The third finding was accidental and the most reassuring. The first run used a
+model name that did not exist, so every call returned 404. Translations fell
+back to templates, clustering fell back to grouping by rule, the narrative
+fell back to computed, and the pipeline produced its complete output. Total
+model failure cost readability and not one finding — tested for with a
+scripted client, then confirmed by a real outage.
+
+**A gap this exposed.** Clustering refuses inputs over 220 findings because
+beyond that omissions become frequent enough that the partition check rejects
+everything. A full-size estate produces 930. So on any realistic estate the
+clustering never reaches the model at all, and the limit that was meant to
+avoid a wasted call instead disables the feature. Batching by rule and
+clustering within each batch would fix it; that is not built.
+
 
 ---
 
