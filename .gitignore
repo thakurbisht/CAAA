@@ -13,6 +13,8 @@ corr_*/
 reconciliation_output/
 drift_output/
 drift_*/
+interpretation_output/
+sample_estate/
 
 # Sample metrics, committed so the README's numbers
 # can be checked without cloning and running the pipeline.
