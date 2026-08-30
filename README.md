@@ -1,61 +1,12 @@
-# Continuous Access Assurance Agent
+# Continuous Access Assurance — Synthetic Estate Generator
 
-[![tests](https://github.com/thakurbisht/CAAA/actions/workflows/tests.yml/badge.svg)](https://github.com/thakurbisht/CAAA/actions/workflows/tests.yml)
-
-An independent, measured assurance control over a hybrid healthcare identity
-estate: Oracle HCM, on-premises Active Directory, Entra ID and an IGA platform.
-
-It generates a synthetic estate with a ground-truth answer key, resolves
-identities across all four systems, detects reconciliation failures and
-segregation-of-duties violations, and tracks privilege drift over time. Every
-rule is scored against that answer key, and every figure in this file is
-asserted in CI.
-
-The point is not that it finds things. It is that the finding rate, the false
-positive rate, and the population each rule could not examine are all
-measured and stated.
+A test harness for building and **measuring** identity assurance controls against a
+hybrid healthcare identity estate.
 
 All data is synthetic. No production data is used, required, or supported.
 
-**Four phases, 86 tests, zero runtime dependencies.**
-
 ---
 
-
-## Sample output
-
-`sample_output/` holds the metrics from a deliberately small run — 250 workers
-over 120 days — so the numbers below can be checked without cloning and
-running anything.
-
-It is a smaller estate than the one the headline figures come from, and two
-differences are worth knowing before reading it:
-
-- **D2 reports zero findings.** At 250 workers most peer groups fall below the
-  eight-member floor, and the rule declines to evaluate groups that small
-  because in a group of three everybody is an outlier by construction. Its
-  coverage statement says 62.1% for exactly that reason. Zero findings here
-  means the rule refused to guess, not that the estate was clean.
-- **The correlation map itself is not committed**, only its metrics. The full
-  map is a few hundred kilobytes of little interest to a reader; the scoring in
-  `correlation/metrics.json` is the part worth checking.
-
-Regenerate it with:
-
-```bash
-python3 main.py --population 250 --days 120 --out sample_estate
-python3 correlate.py --estate sample_estate --out sample_output/correlation
-python3 reconcile.py --estate sample_estate \
-    --correlation sample_output/correlation/correlation_map.csv \
-    --out sample_output/reconciliation
-python3 detect_drift.py --estate sample_estate \
-    --correlation sample_output/correlation/correlation_map.csv \
-    --out sample_output/drift
-```
-
-Everything is seeded, so the same command produces the same numbers.
-
----
 
 ## Running it
 
@@ -245,6 +196,69 @@ what is not. Silent gaps are overstated assurance, which is itself a finding.
 
 ---
 
+## Phase 6 — Interpretation layer
+
+```bash
+python3 interpret.py                    # uses a local model if one is running
+python3 interpret.py --backend ollama --model mistral-nemo:12b
+python3 interpret.py --backend none     # deterministic fallbacks throughout
+```
+
+Everything in phases 1 to 4 can be re-derived by hand from the feeds. This
+layer cannot: a paraphrase has no derivation, and asking a model the same
+question twice is not verification. So the model is confined to operations
+whose output can be checked mechanically against the deterministic input, and
+anything failing the check is discarded rather than repaired.
+
+It does three things, and it decides nothing.
+
+**Translation.** `PYX_DISPENSE_CTRL_SUB` means nothing to the ward manager
+asked to attest to it, and a reviewer who cannot read an entitlement approves
+it. Each rendering is checked against the catalogue: naming the wrong
+application, or calling CRITICAL access low-risk, rejects it. Rejected
+translations fall back to a template that is duller and cannot be wrong.
+
+**Clustering.** 267 findings is more than anyone reads; eight themes is a
+report someone acts on. Grouping is a presentational judgement rather than a
+factual claim, which is what makes it safe to delegate — but only under one
+condition. A model asked to organise 267 items will produce eight fluent,
+plausible themes covering 250 of them, and nothing in the output reveals the
+other 17. The result is therefore checked as a partition and rejected outright
+if it is not one, falling back to grouping by rule.
+
+**Certification quality.** The grade is arithmetic over the coverage
+statements phases 3 and 4 already emit. The model is handed the finished
+numbers and asked only to write them up; every figure in its prose is then
+checked against the set the pipeline produced. A grade produced by a language
+model would be an opinion in a metric's clothing, and the one number here
+nobody could re-derive.
+
+**Rejected, not repaired.** A clustering that has quietly dropped eleven
+findings can be patched by appending them to a leftover group. The result
+looks complete, and nobody knows which of the remaining groups to trust.
+Falling back loses readability and keeps the property that matters.
+
+**The layer is optional.** With no model reachable the pipeline produces its
+full output using deterministic fallbacks. A missing narrative is a cosmetic
+loss; a missing finding is not.
+
+**On testing this.** The failure modes are constructed rather than waited for.
+A real model drops findings from a clustering occasionally and unpredictably;
+a scripted client drops them on demand, which is the only way to assert the
+check catches it. Testing against a live model would establish that it behaved
+on the day the suite ran. The tests cover dropped findings, invented
+identifiers, double-counted findings, wrong applications, understated risk,
+and invented figures in prose — each one constructed, each one caught.
+
+Two bugs surfaced here, both from output disagreeing with itself. The drift
+scorer reported distinct accounts rather than findings for one rule, putting
+two numbers three lines apart in the same report that should have agreed. And
+the narrative validator's own regex never matched a percent sign, so it was
+rejecting figures it had itself supplied.
+
+
+---
+
 ## Status
 
 | Phase | | |
@@ -254,27 +268,8 @@ what is not. Silent gaps are overstated assurance, which is itself a finding.
 | 3 | Reconciliation and SoD rules, scored against ground truth | |
 | 4 | Drift detection — transfer-triggered creep, peer-group baselines | |
 | 5 | Exception lifecycle and suppression governance | |
-| 6 | LLM layer — entitlement translation, clustering, certification quality scoring | |
+| 6 | Interpretation layer — translation, clustering, certification quality | **complete** |
 
 Phase 2 is the hard one, and is deliberately next. Everything downstream depends on
 resolving a human to their accounts across four systems when 46% of directory
 records carry no employee identifier.
-
----
-
-## What this is not
-
-It does not remediate. Detection and remediation are separated deliberately:
-an assurance function that fixes what it finds is no longer second-line, and
-loses the independence that makes its findings worth anything.
-
-It does not replace an IGA platform. It assumes one exists and checks whether
-its coverage is what the organisation believes it to be.
-
-It is not a machine learning system. Detection is deterministic and hand
-re-derivable throughout. A finding that cannot be explained to the person
-losing access is not usable, whatever its accuracy.
-
-## Licence
-
-MIT.

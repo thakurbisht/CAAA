@@ -20,6 +20,10 @@ STAGES = [
     ("Phase 2", "Correlate identities across systems", "correlate.py", []),
     ("Phase 3", "Run reconciliation rules", "reconcile.py", []),
     ("Phase 4", "Detect drift across snapshots", "detect_drift.py", []),
+    # Phase 6 runs with --backend auto, which resolves to no model unless one
+    # is configured. That is a supported outcome rather than a failure: the
+    # deterministic fallbacks produce the full output either way.
+    ("Phase 6", "Interpret findings (optional model layer)", "interpret.py", []),
 ]
 
 
@@ -92,6 +96,7 @@ def main():
     correlation_output/        cluster map, adjudication queue, calibration
     reconciliation_output/     findings, coverage statement, per-rule metrics
     drift_output/              drift findings graded by evidentiary basis
+    interpretation_output/     translations, themes, certification quality
 
   The two worth reading first:
 

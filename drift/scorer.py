@@ -46,7 +46,13 @@ def score_all(results, oracle, breakglass, **kw) -> dict:
         entry = {
             "rule_id": r.rule_id,
             "basis": r.basis,
-            "found": len(found),
+            # Always the number of findings written, so this column means the
+            # same thing for every rule. Scoring keys differ — D3 scores per
+            # (account, entitlement) pair and D2 per account — and reporting
+            # the scoring key here put two numbers in the same report that
+            # should have agreed and did not.
+            "found": len(r.findings),
+            "scoring_keys": len(found),
             "coverage": round(r.coverage, 4),
             "excluded": r.excluded,
             "notes": r.notes,

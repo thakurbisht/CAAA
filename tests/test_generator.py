@@ -304,11 +304,7 @@ class TestPathologyDetectability:
             key = r["ad_sam"] or r["entra_upn"]
             held.setdefault(key, set()).add(r["entitlement"])
 
-        # Load the rules this estate was built from, not whatever estate
-        # happens to be lying in the working directory. Reading a fixed
-        # relative path made the test pass only after the pipeline had been
-        # run by hand, which is not a test — it failed on the first clean
-        # checkout in CI.
+        # Load rules
         rules = json.load(open(tmp_path / "ground_truth" / "sod_rules.json"))
 
         # Check each rule

@@ -1,0 +1,6 @@
+{
+  "backend": "ollama",
+  "model": "mistral-nemo:12b",
+  "calls": 24,
+  "failures": 24
+}
