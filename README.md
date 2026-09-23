@@ -500,11 +500,11 @@ same finding across runs, and none of them could be built while it was not.
 | Phase | | |
 |---|---|---|
 | 1 | Synthetic estate + ground truth | **complete** |
-| 2 | Correlation engine — cross-system identity resolution with confidence scoring | next |
-| 3 | Reconciliation and SoD rules, scored against ground truth | |
-| 4 | Drift detection — transfer-triggered creep, peer-group baselines | |
-| 5 | Exception lifecycle and suppression governance | |
-| 6 | Interpretation layer — translation, clustering, certification quality | **complete** |
+| 2 | Correlation engine, cross-system identity resolution, calibrated | **complete** |
+| 3 | Reconciliation rules, six checks, scored, coverage declared | **complete** |
+| 4 | Drift detection, time-series, evidence graded by basis | **complete** |
+| 5 | Exception lifecycle, decision log and expiring suppression in the console | partly |
+| 6 | Interpretation layer, translation, clustering, certification quality | **complete** |
 
 Phase 2 is the hard one, and is deliberately next. Everything downstream depends on
 resolving a human to their accounts across four systems when 46% of directory
