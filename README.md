@@ -8,6 +8,62 @@ All data is synthetic. No production data is used, required, or supported.
 ---
 
 
+---
+
+## Before running any of this on real data
+
+```bash
+python3 check_data.py --snapshot path/to/extract --previous path/to/earlier
+```
+
+Every rule here depends on assumptions about the feeds it reads. On the
+synthetic estate those hold by construction, because the generator was written
+to satisfy them. On a real estate they may not — and a rule whose assumption
+has quietly failed does not error. It produces confident, wrong findings.
+
+The case that prompted this: R1 treats an HCM termination date as the date
+somebody left. In many HR systems the record is created weeks later with an
+effective date backdated. R1 then reports an account as live 45 days after
+termination when the organisation learned of it yesterday. The finding is
+technically true and operationally useless, and a remediation team shown a few
+of those stops reading the report.
+
+So this runs first, on the raw extracts, before any rule. It scores nothing
+and detects nothing. It reports what the data looks like, names the
+assumptions the data does not support, and says which rules are affected:
+
+| Verdict | Meaning |
+|---|---|
+| `SUPPORTED` | the assumption holds well enough to rely on |
+| `DEGRADED` | it holds partly; findings need a caveat |
+| `UNSUPPORTED` | it does not hold; the affected rules should not be run |
+| `UNKNOWN` | the feed or column needed to test it is absent |
+
+`UNKNOWN` is deliberately separate from `SUPPORTED`. Being unable to test an
+assumption is a different answer from the assumption holding, and collapsing
+them is how a control ends up trusted for a property nobody checked.
+
+Seven assumptions are tested: termination-date recency, whether `employee_id`
+carries one kind of identifier or several, how many naming conventions are in
+use, whether usage data is populated, whether consecutive extracts actually
+differ, whether peer groups are large enough to compare within, and what the
+holdings feed can see.
+
+Run against this project's own synthetic estate it returns two honest answers.
+The generator writes no record-creation timestamp, so termination lag cannot be
+measured and the check reports `UNKNOWN` rather than passing. And the
+aggregation-scope check declares its own structural limit, below.
+
+**A limit no code fixes.** R6 can only report a gap in an application it can
+see. On the synthetic estate the generator writes both the platform's view and
+reality, so the difference is visible. In production an application nobody
+aggregates produces no feed, and cannot appear in a comparison of feeds. R6 is
+therefore an inventory comparison rather than an entitlement analysis: take the
+applications holding privileged access from an architecture register, take the
+connected sources from the platform, and compare those. The difference is the
+finding, and it needs no pipeline at all.
+
+
 ## Running it
 
 No runtime dependencies — the pipeline uses only the Python standard library.
@@ -256,95 +312,185 @@ two numbers three lines apart in the same report that should have agreed. And
 the narrative validator's own regex never matched a percent sign, so it was
 rejecting figures it had itself supplied.
 
-cd /home/claude && cat > readme_addition.md << 'EOF'
 
-**Run against a real model.** Everything above was built against a scripted
-client. Run for the first time against `mistral-nemo:latest` on a local
-Ollama, three things came out of it.
+---
 
-All 23 translations passed validation, and most were good — `PACS_ADMIN`
-came back as full administration of the Picture Archiving and Communication
-System, acronym expanded. One was wrong in a way that matters:
-`LIS_RESULT_AUTHORISE` was rendered as authorising access to *view*
-laboratory results. Authorising a result means releasing it into the clinical
-record; viewing it is passive. The model turned an active capability into a
-passive one, and that entitlement is one half of `SOD-CLIN-02` — a reviewer
-reading "view test results" approves it without pausing, which is the exact
-failure the segregation rule exists to prevent.
+## The report
 
-The validator did not catch it. It checks that the application is right and
-that the risk language does not contradict the catalogue. Both were fine. **The
-checks establish where a claim came from, not whether it means the right
-thing** — and the second is the harder problem, still open. Until it is
-solved, a translation is a reading aid rather than a substitute for the code.
+```bash
+python3 build_report.py
+```
 
-The narrative passed validation and was worse than the fallback it replaced.
-Handed the permitted figures, the model returned all of them as a list and
-opened by describing 88.1% mean coverage across rules as covering "88.1% of
-its rules adequately", which is a different and false claim. Every number was
-one the pipeline produced, so the check passed. The computed fallback — four
-plain sentences — is the better output, and on a 12B local model the
-narration step currently earns nothing.
+Writes `report/report.html`: one self-contained page, no server and no
+dependencies, that opens in a browser and survives being emailed. A dashboard
+framework would have meant a runtime dependency and a running process for
+something whose purpose is to be handed to someone who will not run anything.
 
-The third finding was accidental and the most reassuring. The first run used a
-model name that did not exist, so every call returned 404. Translations fell
-back to templates, clustering fell back to grouping by rule, the narrative
-fell back to computed, and the pipeline produced its complete output. Total
-model failure cost readability and not one finding — tested for with a
-scripted client, then confirmed by a real outage.
+It is built around the coverage statement rather than the finding count. Each
+rule gets a bar showing the population it could assess against the population
+it could not, with the reason for every exclusion named underneath. A rule
+that examined 69.4% of accounts and raised 23 findings is telling you two
+things, and a report showing only the second is the failure this project was
+written against.
 
-**A gap this exposed.** Clustering refuses inputs over 220 findings because
-beyond that omissions become frequent enough that the partition check rejects
-everything. A full-size estate produces 930. So on any realistic estate the
-clustering never reaches the model at all, and the limit that was meant to
-avoid a wasted call instead disables the feature. Batching by rule and
-clustering within each batch would fix it; that is not built.
-EOF
-cat readme_addition.md
-Output
+Drift findings are separated by evidentiary basis, with the statistical rule
+visually subordinated, so a reader can tell at a glance which findings will
+survive a challenge.
 
 
-**Run against a real model.** Everything above was built against a scripted
-client. Run for the first time against `mistral-nemo:latest` on a local
-Ollama, three things came out of it.
+---
 
-All 23 translations passed validation, and most were good — `PACS_ADMIN`
-came back as full administration of the Picture Archiving and Communication
-System, acronym expanded. One was wrong in a way that matters:
-`LIS_RESULT_AUTHORISE` was rendered as authorising access to *view*
-laboratory results. Authorising a result means releasing it into the clinical
-record; viewing it is passive. The model turned an active capability into a
-passive one, and that entitlement is one half of `SOD-CLIN-02` — a reviewer
-reading "view test results" approves it without pausing, which is the exact
-failure the segregation rule exists to prevent.
+## Running it on your own data
 
-The validator did not catch it. It checks that the application is right and
-that the risk language does not contradict the catalogue. Both were fine. **The
-checks establish where a claim came from, not whether it means the right
-thing** — and the second is the harder problem, still open. Until it is
-solved, a translation is a reading aid rather than a substitute for the code.
+The pipeline reads CSV extracts. It does not need the generator, and it does
+not need an answer key.
 
-The narrative passed validation and was worse than the fallback it replaced.
-Handed the permitted figures, the model returned all of them as a list and
-opened by describing 88.1% mean coverage across rules as covering "88.1% of
-its rules adequately", which is a different and false claim. Every number was
-one the pipeline produced, so the check passed. The computed fallback — four
-plain sentences — is the better output, and on a 12B local model the
-narration step currently earns nothing.
+```bash
+# 1. Draft a column mapping from your extract's headers
+python3 check_data.py --snapshot extracts/2026-05-31 \
+    --suggest-profile profile.json
 
-The third finding was accidental and the most reassuring. The first run used a
-model name that did not exist, so every call returned 404. Translations fell
-back to templates, clustering fell back to grouping by rule, the narrative
-fell back to computed, and the pipeline produced its complete output. Total
-model failure cost readability and not one finding — tested for with a
-scripted client, then confirmed by a real outage.
+# 2. Review it, then check the data against the rules' assumptions
+python3 check_data.py --snapshot extracts/2026-05-31 \
+    --previous extracts/2026-05-17 --profile profile.json
 
-**A gap this exposed.** Clustering refuses inputs over 220 findings because
-beyond that omissions become frequent enough that the partition check rejects
-everything. A full-size estate produces 930. So on any realistic estate the
-clustering never reaches the model at all, and the limit that was meant to
-avoid a wasted call instead disables the feature. Batching by rule and
-clustering within each batch would fix it; that is not built.
+# 3. Run
+python3 correlate.py  --estate extracts --profile profile.json --out out/corr
+python3 reconcile.py  --estate extracts --profile profile.json \
+    --correlation out/corr/correlation_map.csv --out out/recon
+python3 detect_drift.py --estate extracts --profile profile.json \
+    --correlation out/corr/correlation_map.csv --out out/drift
+```
+
+Layout: `extracts/snapshots/<date>/*.csv`, one directory per extract date, and
+your segregation-of-duties policy at `extracts/config/sod_rules.json`.
+
+**Two files are enough to start.** An HR worker extract and a directory dump
+produce 30 findings on a 597-account estate — terminated workers holding live
+access, and privileged accounts with no live owner. Each further feed adds
+rules rather than being required; see [MINIMAL_EXTRACT.md](MINIMAL_EXTRACT.md)
+for what each one unlocks, measured rather than assumed.
+
+Where no platform entitlement feed is supplied, the pipeline reports its
+findings and explicitly declines to say whether the identity platform could
+have produced them. Asserting that a finding is unreachable from records that
+were never supplied would be a claim about a comparison nobody made.
+
+**Without an answer key, precision is not reported.** Coverage is. Every rule
+still states the population it examined, what it excluded and why, and whether
+the platform's own data could have produced each finding. A precision figure
+on real data would have to be invented, so it is omitted rather than guessed —
+which is the same reason `UNKNOWN` is kept separate from `SUPPORTED` in the
+pre-flight guard.
+
+**Three couplings had to be broken to make this possible**, and all three were
+invisible while the generator was the only source of input:
+
+- *Ground truth was required to start.* `require_estate()` refused to run
+  without `identity_map.json`. It was written to give a clear error when
+  commands were run out of order, and it quietly locked the whole pipeline to
+  synthetic data — every command died on its first line against a real
+  extract.
+- *Detection and scoring were wired together in the CLIs.* The modules were
+  already separable; the command-line entry points were not.
+- *Segregation rules lived under `ground_truth/`*, implying an organisation's
+  own policy was part of a scoring artefact. They belong in config.
+
+**Two bugs the first real-shaped run exposed**, both in the mapping layer,
+both of the kind that produce a plausible wrong answer rather than an error:
+
+- `employeeID` mapped to `person_number` in the directory feed. The same
+  column name means the HR key in an HR extract and the directory's reference
+  to it in a directory extract; a flat alias table resolved it by whichever
+  canonical name was registered first. Aliases are now scoped per feed — which
+  is the merger problem the guard checks for, appearing one layer earlier.
+- `userAccountControl` mapped to `enabled`. It is a numeric bitmask, not a
+  boolean, so every rule testing `enabled == "TRUE"` returned nothing and R2
+  reported zero findings on an estate that had thirteen. A mapping that
+  attaches a plausible column of the wrong type is worse than one that finds
+  no column, because the second is visible.
+
+Verified by running the full pipeline against an extract with source-system
+column names and no ground truth: the findings match the scored run exactly —
+159 reconciliation findings, 8 drift — with precision correctly absent.
+
+
+---
+
+## The review console
+
+```bash
+python3 serve.py
+```
+
+Opens on `http://127.0.0.1:8000`. Nothing to install — the standard library's
+HTTP server is enough, which matters on a managed VM where `pip install` may
+not be available and every dependency is a question somebody has to answer.
+
+It binds to loopback only. This process reads HR and directory extracts for an
+entire workforce; a console reachable from the network is a data exposure
+wearing a convenience's clothing. For access from another machine, forward the
+port over SSH so the existing access control applies.
+
+Four screens: coverage per rule, the findings list, the adjudication queue, and
+a button that runs the pipeline.
+
+**The queue is built to be worked with the keyboard.** `j` and `k` move,
+`1`/`2`/`3` decide, `Esc` closes. Fifty-five accounts reached by mouse is a
+chore; the same fifty-five by keyboard is a few minutes, and that is the
+difference between a queue that gets cleared and one that does not. Deciding by
+keystroke still opens the drawer rather than writing silently — a name and a
+reason are required either way.
+
+The first version of this reused the printed report's styling: serif body,
+hairline rules, no chrome. That is right for a document somebody reads once and
+wrong for a tool somebody sits in front of for an hour. Rebuilt as an
+application, with the coverage bar kept as the signature element.
+
+**What it adds over the command line is that decisions come back.** Findings
+previously went out and nothing returned — somebody in IAM would say "that one
+is a contractor on extended notice" and the pipeline never heard about it, so
+the same finding appeared the next month, and the month after. A report that
+repeats what has already been answered stops being read, which is the ordinary
+way an assurance control dies.
+
+The decision log is append-only. A decision is never edited, only superseded,
+because an audit asking why an account was left alone in March needs the March
+decision and the name against it — not the current state of a row somebody has
+since overwritten.
+
+**Three rules the console enforces, each closing a way a suppression becomes
+permanent:**
+
+- An accepted risk needs an end date. Without one it hides a real finding
+  forever and nobody notices the suppression outliving the reason for it.
+  Expired decisions drop out on their own and the finding returns.
+- A decision needs a name against it. A decision with nobody attached is not
+  evidence.
+- A correlation link can be left `unknown`. Forcing a yes or no on ambiguous
+  evidence is how a wrong link gets recorded as a confirmed one.
+
+**Items are identified by content, not position.** A finding used to be "the
+Nth row of a CSV", so inserting one renumbered everything below it and a
+decision recorded against `R0001` silently attached itself to a different
+account on the next run. The id is now derived from the rule, the subject and
+the specific condition, so the same problem produces the same id whenever it is
+seen.
+
+That identity is also what the roadmap has been waiting on. Delta detection,
+suppression, ticket handoff, trend and audit trail all need a finding to be the
+same finding across runs, and none of them could be built while it was not.
+
+**Two bugs the build surfaced**, both in code I had just written:
+
+- The Content-Security-Policy header blocked the console's own inline script,
+  so every screen rendered empty while the API worked perfectly. Extracting the
+  script to its own file fixed it without loosening the policy — the right
+  direction, since the console renders account names and free-text notes.
+- A thread started with `args=(x)` rather than `args=(x,)`, which is not a
+  tuple. The run button raised before the pipeline began, and the failure
+  landed on the HTTP request rather than in the run log where anyone would look
+  for it.
 
 
 ---

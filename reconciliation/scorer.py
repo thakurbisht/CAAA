@@ -53,6 +53,11 @@ def score_rule(result, truth: dict, injected: dict[str, set[str]]) -> dict:
 
     out = {
         "rule_id": result.rule_id,
+        # Carried so a report written for an audit committee can name the
+        # check in words. A narrative that says "R6_COVERAGE_GAP was the
+        # least complete" is addressed to whoever wrote the rule, not to
+        # whoever has to act on it.
+        "name": result.name,
         "expected": len(expected),
         "found": len(found),
         "true_positives": len(tp),

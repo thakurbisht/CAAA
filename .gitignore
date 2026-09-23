@@ -13,9 +13,10 @@ corr_*/
 reconciliation_output/
 drift_output/
 drift_*/
-interpretation_output/
+
+# Runtime data, not source.
+review/
+report/
 sample_estate/
 
-# Sample metrics, committed so the README's numbers
-# can be checked without cloning and running the pipeline.
-!sample_output/
+interpretation_output/

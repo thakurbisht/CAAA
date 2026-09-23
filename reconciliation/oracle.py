@@ -39,16 +39,14 @@ class TruthOracle:
         self.estate = estate_dir
         self.snap = snapshot_dir
 
-        def rd(name):
-            p = snapshot_dir / name
-            return list(csv.DictReader(open(p, newline=""))) if p.exists() else []
-
-        self.hcm = {r["person_number"]: r for r in rd("hcm_workers.csv")}
-        self.ad = {r["sam_account_name"]: r for r in rd("ad_accounts.csv")}
-        self.nhi = {r["ad_sam"]: r for r in rd("nhi_register.csv")}
-        self.iga_ident = {r["iga_identity_id"]: r for r in rd("iga_identities.csv")}
-        self.app_ent = rd("app_entitlements.csv")
-        self.iga_ent = rd("iga_entitlements.csv")
+        from feeds import load_feeds
+        f = load_feeds(snapshot_dir)
+        self.hcm = {r["person_number"]: r for r in f["hcm"]}
+        self.ad = {r["sam_account_name"]: r for r in f["ad"]}
+        self.nhi = {r["ad_sam"]: r for r in f["nhi"]}
+        self.iga_ident = {r["iga_identity_id"]: r for r in f["iga"]}
+        self.app_ent = f["app_ent"]
+        self.iga_ent = f["iga_ent"]
 
         imap = json.load(open(estate_dir / "ground_truth" / "identity_map.json"))
         self.by_pid = {r["pid"]: r for r in imap}

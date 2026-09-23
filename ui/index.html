@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Access assurance console</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<div class="shell">
+
+  <aside class="rail">
+    <div class="brand">
+      <span class="mark"></span>
+      <div>
+        <strong>Access assurance</strong>
+        <span id="rail-estate">&nbsp;</span>
+      </div>
+    </div>
+
+    <nav>
+      <button data-tab="overview" aria-current="true"><span>Overview</span></button>
+      <button data-tab="findings"><span>Findings</span><b id="n-findings">—</b></button>
+      <button data-tab="queue"><span>Adjudication</span><b id="n-queue">—</b></button>
+      <button data-tab="run"><span>Run</span></button>
+    </nav>
+
+    <div class="rail-foot">
+      <div class="statline" id="run-state"><i class="dot"></i><span>idle</span></div>
+      <div class="statline" id="scored-state"><i class="dot"></i><span>&nbsp;</span></div>
+    </div>
+  </aside>
+
+  <div class="work">
+
+    <section id="overview">
+      <header class="bar">
+        <h1>Overview</h1>
+        <div class="bar-meta" id="run-meta"></div>
+      </header>
+      <div class="pad">
+        <div class="tiles" id="tiles"></div>
+        <div id="alerts"></div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Coverage by rule</h2>
+            <p>The filled part is the population the rule could assess. The rest
+               was not clean — it was unexamined, and the reason is stated.</p>
+          </div>
+          <div class="panel-body" id="coverage"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="findings" hidden>
+      <header class="bar">
+        <h1>Findings</h1>
+        <div class="segmented" id="f-filters">
+          <button data-f="open" aria-pressed="true">Open</button>
+          <button data-f="all" aria-pressed="false">All</button>
+          <button data-f="CRITICAL" aria-pressed="false">Critical</button>
+          <button data-f="HIGH" aria-pressed="false">High</button>
+          <button data-f="PEER_DISTRIBUTION" aria-pressed="false">Statistical</button>
+        </div>
+        <input type="search" id="fsearch" placeholder="Account, rule or text"
+               aria-label="Search findings">
+      </header>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead><tr>
+            <th class="w-sev">Severity</th>
+            <th class="w-acct">Account</th>
+            <th>Finding</th>
+            <th class="w-rule">Rule</th>
+            <th class="w-dec">Decision</th>
+          </tr></thead>
+          <tbody id="findings-body"></tbody>
+        </table>
+        <p class="empty" id="findings-empty" hidden>Nothing matches.</p>
+      </div>
+      <footer class="statusbar"><span id="findings-count"></span></footer>
+    </section>
+
+    <section id="queue" hidden>
+      <header class="bar">
+        <h1>Adjudication</h1>
+        <div class="segmented" id="q-filters">
+          <button data-q="open" aria-pressed="true">Open</button>
+          <button data-q="all" aria-pressed="false">All</button>
+        </div>
+        <span class="kbd-hint">
+          <kbd>j</kbd><kbd>k</kbd> move &nbsp;
+          <kbd>1</kbd> confirm <kbd>2</kbd> reject <kbd>3</kbd> unknown
+        </span>
+      </header>
+      <div class="split">
+        <div class="list" id="queue-list" tabindex="0" role="listbox"
+             aria-label="Accounts awaiting adjudication"></div>
+        <div class="detail" id="queue-detail"></div>
+      </div>
+      <footer class="statusbar"><span id="queue-count"></span></footer>
+    </section>
+
+    <section id="run" hidden>
+      <header class="bar">
+        <h1>Run</h1>
+        <button class="primary" id="run-btn">Run pipeline</button>
+      </header>
+      <div class="pad">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Stages</h2>
+            <p>Correlation, then reconciliation, then drift. Each reads the
+               previous stage's output, so a failure stops the run rather than
+               producing partial findings.</p>
+          </div>
+          <div class="panel-body">
+            <ol class="stages" id="stages">
+              <li data-stage="correlate"><i></i>Correlate identities</li>
+              <li data-stage="reconcile"><i></i>Reconciliation rules</li>
+              <li data-stage="detect_drift"><i></i>Drift detection</li>
+            </ol>
+            <pre class="log" id="run-log">Not run in this session.</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="drawer-scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Record a decision">
+  <header>
+    <div>
+      <h2 id="d-title"></h2>
+      <p class="mono" id="d-subject"></p>
+    </div>
+    <button class="icon" id="d-close" aria-label="Close">&times;</button>
+  </header>
+
+  <div class="drawer-body">
+    <label class="field"><span>Decision</span>
+      <div class="choices" id="d-choices"></div>
+    </label>
+    <p class="hint" id="d-hint"></p>
+
+    <label class="field" id="d-expiry-wrap" hidden><span>Review again on</span>
+      <input type="date" id="d-expires">
+      <em>An accepted risk with no end date hides the finding permanently, and
+        nobody notices the suppression outliving the reason for it.</em>
+    </label>
+
+    <label class="field"><span>Your name</span>
+      <input type="text" id="d-by" autocomplete="name" placeholder="Who decided this">
+    </label>
+
+    <label class="field"><span>Reason</span>
+      <textarea id="d-note"
+        placeholder="What did you check, and what did it show?"></textarea>
+    </label>
+
+    <div id="d-history"></div>
+    <p class="err" id="d-err"></p>
+  </div>
+
+  <footer>
+    <button id="d-cancel">Cancel</button>
+    <button class="primary" id="d-save">Record decision</button>
+  </footer>
+</aside>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -45,6 +45,7 @@ def score_all(results, oracle, breakglass, **kw) -> dict:
         found = _found(r)
         entry = {
             "rule_id": r.rule_id,
+            "name": r.name,
             "basis": r.basis,
             # Always the number of findings written, so this column means the
             # same thing for every rule. Scoring keys differ — D3 scores per
@@ -54,6 +55,10 @@ def score_all(results, oracle, breakglass, **kw) -> dict:
             "found": len(r.findings),
             "scoring_keys": len(found),
             "coverage": round(r.coverage, 4),
+            # The ratio alone does not say whether 79.8% is of a thousand
+            # accounts or of twelve, and those are different claims.
+            "population_examined": r.population_examined,
+            "population_total": r.population_total,
             "excluded": r.excluded,
             "notes": r.notes,
         }

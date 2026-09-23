@@ -305,7 +305,7 @@ class TestPathologyDetectability:
             held.setdefault(key, set()).add(r["entitlement"])
 
         # Load rules
-        rules = json.load(open(tmp_path / "ground_truth" / "sod_rules.json"))
+        rules = json.load(open("estate/ground_truth/sod_rules.json"))
 
         # Check each rule
         detected = Counter()

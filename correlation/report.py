@@ -19,23 +19,15 @@ from pathlib import Path
 # Loading
 # --------------------------------------------------------------------------
 
-def load_snapshot(snapshot_dir: Path) -> dict[str, list[dict]]:
-    def rd(name):
-        p = snapshot_dir / name
-        if not p.exists():
-            return []
-        with open(p, newline="") as f:
-            return list(csv.DictReader(f))
+def load_snapshot(snapshot_dir: Path, profile=None) -> dict[str, list[dict]]:
+    """Read a snapshot through the shared loader.
 
-    return {
-        "hcm": rd("hcm_workers.csv"),
-        "ad": rd("ad_accounts.csv"),
-        "entra": rd("entra_accounts.csv"),
-        "iga": rd("iga_identities.csv"),
-        "iga_ent": rd("iga_entitlements.csv"),
-        "app_ent": rd("app_entitlements.csv"),
-        "nhi": rd("nhi_register.csv"),
-    }
+    Filenames and column names live in feeds.py rather than here, so an
+    extract whose columns are named by the source system can be mapped in a
+    profile instead of by editing this module and five others like it.
+    """
+    from feeds import load_feeds
+    return load_feeds(snapshot_dir, profile)
 
 
 def latest_snapshot(estate_dir: Path) -> Path:

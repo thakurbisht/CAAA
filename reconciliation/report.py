@@ -30,7 +30,7 @@ def write_outputs(out_dir: Path, results, metrics: dict):
         w.writerow(["rule_id", "severity", "subject", "cluster_id",
                     "person_number", "summary", "evidence"])
         for f in all_findings:
-            if not f.visible_in_iga_data:
+            if f.visible_in_iga_data is False:
                 r = f.row()
                 w.writerow(r[:6] + [r[7]])
 
@@ -38,11 +38,12 @@ def write_outputs(out_dir: Path, results, metrics: dict):
         w = csv.writer(fh)
         w.writerow(["rule_id", "name", "population_examined", "population_total",
                     "coverage_pct", "findings", "invisible_to_platform",
-                    "excluded", "notes"])
+                    "platform_comparison_unavailable", "excluded", "notes"])
         for r in results:
             w.writerow([r.rule_id, r.name, r.population_examined,
                         r.population_total, f"{r.coverage:.1%}",
                         len(r.findings), r.invisible_to_platform,
+                        r.platform_comparison_unavailable,
                         json.dumps(r.excluded), " | ".join(r.notes)])
 
     with open(out_dir / "rule_metrics.json", "w") as fh:

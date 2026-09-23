@@ -92,7 +92,7 @@ class EstateTimeline:
     snapshot in memory is unnecessary and slow.
     """
 
-    def __init__(self, estate_dir: Path, correlation_csv: Path):
+    def __init__(self, estate_dir: Path, correlation_csv: Path, profile=None):
         self.estate = estate_dir
         self.snapshots = sorted((estate_dir / "snapshots").iterdir())
         self.dates = [date.fromisoformat(s.name) for s in self.snapshots]
@@ -101,23 +101,28 @@ class EstateTimeline:
         self.cluster_by_sam = {c["ad_sam"]: c for c in self.clusters if c["ad_sam"]}
 
         # person_number -> department, per snapshot
+        from feeds import load_feeds
+        self.profile = profile
+
         self.dept_series: list[dict[str, str]] = []
         self.job_series: list[dict[str, str]] = []
         for s in self.snapshots:
             d, j = {}, {}
-            for r in csv.DictReader(open(s / "hcm_workers.csv", newline="")):
-                d[r["person_number"]] = r["department"]
-                j[r["person_number"]] = r["job_code"]
+            for r in load_feeds(s, profile)["hcm"]:
+                pn = r.get("person_number")
+                if pn:
+                    d[pn] = r.get("department", "")
+                    j[pn] = r.get("job_code", "")
             self.dept_series.append(d)
             self.job_series.append(j)
 
         latest = self.snapshots[-1]
         self.as_of = self.dates[-1]
-        self.hcm = {r["person_number"]: r
-                    for r in csv.DictReader(open(latest / "hcm_workers.csv", newline=""))}
+        f = load_feeds(latest, profile)
+        self.hcm = {r["person_number"]: r for r in f["hcm"] if r.get("person_number")}
 
         self.holdings: dict[str, list[dict]] = {}
-        for r in csv.DictReader(open(latest / "app_entitlements.csv", newline="")):
+        for r in f["app_ent"]:
             self.holdings.setdefault(r["ad_sam"], []).append(r)
 
     # ------------------------------------------------------------------
@@ -550,9 +555,10 @@ def rule_standing_breakglass(t: EstateTimeline,
     examined = 0
 
     # Presence of each break-glass grant in every snapshot
+    from feeds import load_feeds
     seen: dict[tuple[str, str], int] = {}
     for s in t.snapshots:
-        for r in csv.DictReader(open(s / "app_entitlements.csv", newline="")):
+        for r in load_feeds(s, getattr(t, "profile", None))["app_ent"]:
             if r["entitlement"] in breakglass:
                 seen[(r["ad_sam"], r["entitlement"])] = \
                     seen.get((r["ad_sam"], r["entitlement"]), 0) + 1

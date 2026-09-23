@@ -5,7 +5,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from _preflight import require_estate
+from _preflight import require_estate, has_ground_truth
+from feeds import Profile
 from correlation import (CorrelationEngine, load_snapshot,
                          latest_snapshot, score, write_outputs)
 
@@ -17,12 +18,14 @@ def main():
     p.add_argument("--out", default="correlation_output")
     p.add_argument("--accept", type=float, default=0.80)
     p.add_argument("--review", type=float, default=0.55)
+    p.add_argument("--profile", default=None)
     a = p.parse_args()
 
     estate = Path(a.estate)
     require_estate(estate)
     snap = (estate / "snapshots" / a.snapshot) if a.snapshot else latest_snapshot(estate)
-    feeds = load_snapshot(snap)
+    profile = Profile.load(Path(a.profile)) if a.profile else None
+    feeds = load_snapshot(snap, profile)
 
     print(f"\n  Snapshot   {snap.name}")
     print(f"  HCM {len(feeds['hcm']):>6,}   AD {len(feeds['ad']):>6,}   "
@@ -32,11 +35,48 @@ def main():
                             accept=a.accept, review=a.review)
     clusters = eng.correlate()
 
-    imap = json.load(open(estate / "ground_truth" / "identity_map.json"))
-    metrics = score(clusters, imap)
+    # Correlation can be scored only where the true account-to-person mapping
+    # is known, which is to say only on a generated estate.
+    scored = has_ground_truth(estate)
+    if scored:
+        imap = json.load(open(estate / "ground_truth" / "identity_map.json"))
+        metrics = score(clusters, imap)
+    else:
+        status = {}
+        for c in clusters:
+            status[c.status] = status.get(c.status, 0) + 1
+        tiers = {}
+        for c in clusters:
+            if "HCM" in c.links:
+                tiers[c.links["HCM"].tier] = tiers.get(c.links["HCM"].tier, 0) + 1
+        metrics = {"scored": False,
+                   "reason": "no identity map; resolution rate reported, "
+                             "accuracy cannot be",
+                   "cluster_status": dict(sorted(status.items())),
+                   "tier_distribution": dict(sorted(tiers.items()))}
 
     out = Path(a.out)
     write_outputs(out, clusters, eng.disagreements, metrics)
+
+    if not scored:
+        print("  No identity map for this estate: resolution is reported, "
+              "accuracy is not.\n")
+        print("  Cluster status")
+        print("  " + "-" * 46)
+        for k, v in metrics["cluster_status"].items():
+            print(f"  {k:<28}{v:>8,}")
+        print("\n  Matching tier used")
+        print("  " + "-" * 46)
+        for k, v in metrics["tier_distribution"].items():
+            print(f"  {k:<28}{v:>8,}")
+        dis = Counter(d["type"] for d in eng.disagreements)
+        print("\n  Disagreements with the IGA platform")
+        print("  " + "-" * 46)
+        for k, v in sorted(dis.items()):
+            print(f"  {k:<28}{v:>8,}")
+        print(f"  {'TOTAL':<28}{len(eng.disagreements):>8,}")
+        print(f"\n  Written to {out.resolve()}\n")
+        return
 
     ls = metrics["link_scoring"]
     print("  Link scoring vs ground truth")

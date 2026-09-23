@@ -86,9 +86,10 @@ class DriftOracle:
     def d4_standing_breakglass(self, breakglass: set[str]) -> set[str]:
         """Accounts holding a break-glass entitlement in every snapshot."""
         t = self.t
+        from feeds import load_feeds
         seen = {}
         for s in t.snapshots:
-            for r in csv.DictReader(open(s / "app_entitlements.csv", newline="")):
+            for r in load_feeds(s, getattr(t, "profile", None))["app_ent"]:
                 if r["entitlement"] in breakglass:
                     seen[(r["ad_sam"], r["entitlement"])] = \
                         seen.get((r["ad_sam"], r["entitlement"]), 0) + 1

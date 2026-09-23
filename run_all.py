@@ -24,6 +24,7 @@ STAGES = [
     # is configured. That is a supported outcome rather than a failure: the
     # deterministic fallbacks produce the full output either way.
     ("Phase 6", "Interpret findings (optional model layer)", "interpret.py", []),
+    ("Report", "Build the HTML report", "build_report.py", []),
 ]
 
 
@@ -97,6 +98,7 @@ def main():
     reconciliation_output/     findings, coverage statement, per-rule metrics
     drift_output/              drift findings graded by evidentiary basis
     interpretation_output/     translations, themes, certification quality
+    report/report.html         one self-contained page; open it in a browser
 
   The two worth reading first:
 

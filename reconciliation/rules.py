@@ -34,6 +34,20 @@ from pathlib import Path
 SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
 
 
+def _as_of_from(snapshot_dir: Path) -> date:
+    """The date a snapshot describes.
+
+    Taken from the directory name when it is a date, which is the generator's
+    convention. A real extract is unlikely to follow it, so fall back to
+    today rather than refusing to run — the caller can pass `as_of`
+    explicitly when the extract date is known.
+    """
+    try:
+        return date.fromisoformat(snapshot_dir.name)
+    except ValueError:
+        return date.today()
+
+
 @dataclass
 class Finding:
     rule_id: str
@@ -43,14 +57,26 @@ class Finding:
     person_number: str | None
     summary: str
     evidence: dict = field(default_factory=dict)
-    visible_in_iga_data: bool = True   # would the platform's own data reveal this?
+
+    # Would the platform's own data have revealed this? Three states, not two.
+    # Asserting "no" when the platform's feed was never supplied is a claim
+    # about a comparison that was not made — the same conflation of "we could
+    # not test this" with "we tested it and it failed" that the pre-flight
+    # guard keeps separate as UNKNOWN.
+    visible_in_iga_data: bool | None = True
+
+    @property
+    def platform_visibility(self) -> str:
+        if self.visible_in_iga_data is None:
+            return "unknown"
+        return "yes" if self.visible_in_iga_data else "no"
 
     def row(self) -> list:
         return [
             self.rule_id, self.severity, self.subject,
             self.cluster_id or "", self.person_number or "",
             self.summary,
-            "yes" if self.visible_in_iga_data else "no",
+            self.platform_visibility,
             json.dumps(self.evidence, sort_keys=True),
         ]
 
@@ -72,7 +98,18 @@ class RuleResult:
 
     @property
     def invisible_to_platform(self) -> int:
-        return sum(1 for f in self.findings if not f.visible_in_iga_data)
+        """Findings the platform's data demonstrably could not produce.
+
+        Counts only findings compared against a platform feed that was
+        actually present. Where no comparison was possible the finding is
+        neither visible nor invisible, and counting it either way overstates
+        what is known.
+        """
+        return sum(1 for f in self.findings if f.visible_in_iga_data is False)
+
+    @property
+    def platform_comparison_unavailable(self) -> int:
+        return sum(1 for f in self.findings if f.visible_in_iga_data is None)
 
 
 # ==========================================================================
@@ -89,22 +126,25 @@ class EstateView:
     """
 
     def __init__(self, snapshot_dir: Path, correlation_csv: Path,
-                 as_of: date | None = None):
-        self.as_of = as_of or date.fromisoformat(snapshot_dir.name)
+                 as_of: date | None = None, profile=None):
+        self.as_of = as_of or _as_of_from(snapshot_dir)
 
-        def rd(name):
-            p = snapshot_dir / name
-            return list(csv.DictReader(open(p, newline=""))) if p.exists() else []
-
-        self.hcm = rd("hcm_workers.csv")
-        self.ad = rd("ad_accounts.csv")
-        self.entra = rd("entra_accounts.csv")
-        self.iga_ident = rd("iga_identities.csv")
-        self.iga_ent = rd("iga_entitlements.csv")
-        self.app_ent = rd("app_entitlements.csv")
-        self.nhi = rd("nhi_register.csv")
+        from feeds import load_feeds
+        f = load_feeds(snapshot_dir, profile)
+        self.hcm = f["hcm"]
+        self.ad = f["ad"]
+        self.entra = f["entra"]
+        self.iga_ident = f["iga"]
+        self.iga_ent = f["iga_ent"]
+        self.app_ent = f["app_ent"]
+        self.nhi = f["nhi"]
 
         self.clusters = list(csv.DictReader(open(correlation_csv, newline="")))
+
+        # Whether a platform entitlement feed was supplied at all. Without it,
+        # no finding can be described as reachable or unreachable from the
+        # platform's records, because there are no records to compare against.
+        self.has_platform_holdings = bool(self.iga_ent)
 
         self._index()
 
@@ -154,6 +194,10 @@ class EstateView:
     def entitlement_visible_to_iga(self, sam: str, entitlement: str) -> bool:
         return any(r["entitlement"] == entitlement
                    for r in self.iga_holdings_by_sam.get(sam, []))
+
+    def visibility(self, seen_in_platform: bool) -> bool | None:
+        """Resolve a visibility claim, or decline to make one."""
+        return seen_in_platform if self.has_platform_holdings else None
 
 
 # ==========================================================================
@@ -232,7 +276,7 @@ def rule_leaver_not_deprovisioned(v: EstateView) -> RuleResult:
                 "correlation_confidence": float(c["confidence"] or 0),
                 "correlation_tier": c["tier"],
             },
-            visible_in_iga_data=bool(iga_visible),
+            visible_in_iga_data=v.visibility(bool(iga_visible)),
         ))
 
     r = RuleResult("R1_LEAVER_NOT_DEPROVISIONED",
@@ -353,7 +397,8 @@ def rule_orphaned_nhi(v: EstateView) -> RuleResult:
                 "entitlements_held": len(held),
                 "critical_entitlements": critical,
             },
-            visible_in_iga_data=bool(v.iga_holdings_by_sam.get(sam)),
+            visible_in_iga_data=v.visibility(
+                bool(v.iga_holdings_by_sam.get(sam))),
         ))
 
     return RuleResult("R3_ORPHANED_NHI",
@@ -420,7 +465,8 @@ def rule_orphaned_admin_account(v: EstateView) -> RuleResult:
                 "parent_cluster": c["parent_cluster_id"] or None,
                 "correlation_confidence": float(c["confidence"] or 0),
             },
-            visible_in_iga_data=bool(v.iga_holdings_by_sam.get(sam)),
+            visible_in_iga_data=v.visibility(
+                bool(v.iga_holdings_by_sam.get(sam))),
         ))
 
     return RuleResult("R4_ORPHANED_ADMIN_ACCOUNT",
@@ -481,7 +527,7 @@ def rule_sod_violation(v: EstateView, sod_rules: list[dict]) -> RuleResult:
                     "rationale": rule["rationale"],
                     "reachable_from_platform_data": visible,
                 },
-                visible_in_iga_data=visible,
+                visible_in_iga_data=v.visibility(visible),
             ))
 
     r = RuleResult("R5_SOD_VIOLATION",

@@ -21,18 +21,36 @@ def _die(what: str, path: Path, fix: str):
 
 
 def require_estate(estate: Path):
+    """Check an estate is present and usable.
+
+    Deliberately does not require ground truth. An earlier version did, and
+    that single check locked the whole pipeline to the generator's own output:
+    a real extract has no answer key, so every command died on its first line.
+    The check was written to give a helpful error when commands were run out
+    of order, and quietly turned into the reason the tool could not be used on
+    real data.
+
+    Scoring needs an answer key. Detection does not.
+    """
     if not estate.exists():
-        _die("the synthetic estate", estate,
-             "python3 main.py --population 800 --days 180")
+        _die("the estate directory", estate,
+             "python3 main.py --population 800 --days 180   # or point "
+             "--estate at your own extracts")
     snaps = estate / "snapshots"
     if not snaps.exists() or not any(snaps.iterdir()):
         _die("estate snapshots", snaps,
-             "python3 main.py --population 800 --days 180")
-    gt = estate / "ground_truth" / "identity_map.json"
-    if not gt.exists():
-        _die("the ground-truth identity map", gt,
-             "python3 main.py --population 800 --days 180   # regenerate; "
-             "this file is what makes scoring possible")
+             "python3 main.py --population 800 --days 180   # or place your "
+             "extracts under <estate>/snapshots/<date>/")
+
+
+def has_ground_truth(estate: Path) -> bool:
+    """Whether this estate can be scored.
+
+    True only for a generated estate. On real extracts nobody knows the right
+    answer, which is exactly why the rules have to declare their coverage
+    instead of relying on a measured precision figure.
+    """
+    return (estate / "ground_truth" / "identity_map.json").exists()
 
 
 def require_correlation(csv_path: Path):

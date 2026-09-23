@@ -70,6 +70,7 @@ def assess(recon_metrics: dict, drift_metrics: dict,
     for s in recon_metrics.get("per_rule", []):
         per_rule.append({
             "rule_id": s["rule_id"],
+            "name": s.get("name", s["rule_id"]),
             "coverage": s["coverage"],
             "findings": s["found"],
             "excluded": s.get("excluded", {}),
@@ -82,6 +83,7 @@ def assess(recon_metrics: dict, drift_metrics: dict,
     for s in drift_metrics.get("per_rule", []):
         per_rule.append({
             "rule_id": s["rule_id"],
+            "name": s.get("name", s["rule_id"]),
             "coverage": s["coverage"],
             "findings": s["found"],
             "excluded": s.get("excluded", {}),
@@ -109,7 +111,8 @@ def assess(recon_metrics: dict, drift_metrics: dict,
         f"This certification is graded {grade}: {meaning}. "
         f"Across {len(per_rule)} rules, mean coverage was "
         f"{coverage:.1%} and {total_findings} findings were raised. "
-        + (f"The least complete check was {weakest['rule_id']} at "
+        + (f"The least complete check was the one for "
+           f"{weakest['name'][0].lower()}{weakest['name'][1:]}, at "
            f"{weakest['coverage']:.1%}. " if weakest else "")
         + (f"{len(blind)} populations were excluded from at least one rule "
            f"and are recorded as unexamined rather than clean."
@@ -126,7 +129,7 @@ def assess(recon_metrics: dict, drift_metrics: dict,
             f"Rules run: {len(per_rule)}\n"
             f"Total findings: {total_findings}\n\n"
             f"Per rule:\n" +
-            "\n".join(f"  {r['rule_id']}: coverage {r['coverage']:.1%}, "
+            "\n".join(f"  {r['name']}: coverage {r['coverage']:.1%}, "
                       f"{r['findings']} findings" for r in per_rule) +
             f"\n\nExcluded populations:\n" +
             ("\n".join(f"  {b['rule_id']}: {b['population']} accounts "
