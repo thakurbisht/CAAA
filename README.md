@@ -1,12 +1,49 @@
-# Continuous Access Assurance — Synthetic Estate Generator
+# Continuous Access Assurance Agent
 
-A test harness for building and **measuring** identity assurance controls against a
-hybrid healthcare identity estate.
+[![tests](https://github.com/thakurbisht/CAAA/actions/workflows/tests.yml/badge.svg)](https://github.com/thakurbisht/CAAA/actions/workflows/tests.yml)
 
-All data is synthetic. No production data is used, required, or supported.
+An independent, measured assurance control over a hybrid healthcare identity
+estate: Oracle HCM, on-premises Active Directory, Entra ID and an IGA platform.
+
+It generates a synthetic estate with a ground-truth answer key, resolves
+identities across all four systems, detects reconciliation failures and
+segregation-of-duties violations, tracks privilege drift over time, and records
+what humans decided about each finding. Every rule is scored against that
+answer key, and every figure in this file is asserted in CI.
+
+The point is not that it finds things. It is that the finding rate, the false
+positive rate, and the population each rule could not examine are all measured
+and stated.
+
+**Six phases, 200 tests, zero runtime dependencies. Runs on your own CSV
+extracts, with a local review console.**
+
+All data in the generator is synthetic. No production data is used, required,
+or supported.
 
 ---
 
+## Three commitments
+
+These are what the phases have in common, and what the tests actually enforce.
+
+**Independence.** The control never reads the IGA platform's own correlation or
+entitlement claims as evidence. Doing so would mean assuring a system with its
+own output. It resolves identities independently and *then* compares; where the
+two disagree, that disagreement is a finding. A test empties the platform's
+entitlement feed and asserts the finding set is unchanged.
+
+**Declared coverage.** Every rule reports the population it could not examine
+alongside the findings it produced. A check that silently skips three clinical
+applications and reports zero findings is worse than no check, because it
+manufactures confidence. R1 examines 79.5% of accounts and says so; R5 names
+the two segregation rules it cannot evaluate from platform data at all.
+
+**Graded evidence.** A statistical outlier and an observed transfer both look
+like a row in a CSV, but only one survives being challenged by the person
+losing access. Findings carry the basis they rest on, and a statistical signal
+is capped below a deterministic one so that sorting by severity cannot promote
+a hint above a fact.
 
 ---
 
@@ -77,7 +114,8 @@ python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install pytest                 # tests only
 
-python3 run_all.py                 # all four phases, then the test suite
+python3 run_all.py                 # every stage, then the test suite
+python3 serve.py                   # the review console, on localhost
 ```
 
 On WSL2, clone into the Linux filesystem (`~/`) rather than `/mnt/c/`. Writing
@@ -92,6 +130,9 @@ python3 correlate.py                           # resolve identities
 python3 calibrate.py                           # sweep the correlation threshold
 python3 reconcile.py                           # six reconciliation rules
 python3 detect_drift.py                        # drift across snapshots
+python3 interpret.py                           # optional model layer
+python3 build_report.py                        # one self-contained HTML page
+python3 serve.py                               # the review console
 ```
 
 Each stage consumes the previous one's output and will tell you which command
@@ -251,6 +292,144 @@ itself.
 what is not. Silent gaps are overstated assurance, which is itself a finding.
 
 ---
+
+---
+
+## Phase 2 — Correlation engine
+
+```bash
+python3 correlate.py                 # correlate the latest snapshot
+python3 calibrate.py                 # sweep the acceptance threshold
+```
+
+Resolves each account to a human across HCM, Local AD, Entra and the IGA
+platform, using five tiers strongest-first: employee identifier, UPN local
+part, name plus department, near-name with margin, and derivation of
+administrative satellites from their base account.
+
+| | |
+|---|---|
+| Precision | **100.0%** |
+| Recall | 96.5% |
+| False link rate | **0.00%** |
+| Non-human identities wrongly linked to a person | **0 of 90** |
+
+Threshold calibration shows a stable plateau from 0.78 to 0.86 at zero false
+links; below 0.78 a false link appears, above 0.86 recall collapses. The
+default of 0.80 sits in the middle of that plateau, so it is a documented
+decision rather than an arbitrary default.
+
+**Why precision is the metric, not F1.** The two error modes are not
+symmetric. A missed link lands in the adjudication queue and gets worked. A
+false link silently attributes privilege to the wrong person, and every
+downstream finding built on it is wrong in a way nothing else will catch. The
+engine is tuned to refuse rather than guess:
+
+- **Ties are refused.** Where several HR records match a name equally well, the
+  margin over the runner-up *is* the evidence. Without one, the engine asserts
+  nothing rather than taking the first.
+- **Contested records are demoted, not arbitrated.** Where two accounts claim
+  one person, at most one can be right, so neither is asserted.
+- **Derived links inherit their parent's confidence.** An administrative
+  satellite cannot be more certain than the primary account it was derived
+  from — otherwise an error in the primary is laundered into a confident
+  assertion about the *privileged* account.
+
+---
+
+## Phase 3 — Reconciliation rules
+
+```bash
+python3 reconcile.py
+```
+
+Six deterministic checks over the correlated estate. Every finding is
+re-derivable by hand from its recorded evidence.
+
+| Rule | Found | Precision | Recall | Coverage |
+|---|---|---|---|---|
+| R1 Leaver not deprovisioned | 22 | **100%** | 88.0% | 79.5% |
+| R2 Platform state disagreement | 13 | **100%** | 100% | 88.8% |
+| R3 Orphaned non-human identity | 52 | **100%** | 100% | 100% |
+| R4 Orphaned admin account | 17 | **100%** | 100% | 100% |
+| R5 Segregation-of-duties violation | 112 | **100%** | 100% | 75.6% |
+| R6 Coverage gap | 3 | **100%** | 100% | 57.1% |
+
+Zero false positives on every rule, on both a fault-injected estate and a
+fault-free one.
+
+**66% of findings are unreachable from the platform's own data** — including
+every R2 finding by construction, since that rule compares the platform's
+record against an independent directory read.
+
+**What the build corrected.** Three measurement errors, each found by checking
+output against the data rather than accepting a plausible number:
+
+- *The answer key was an injection log.* Scored against it, R4 showed 18.8%
+  precision — and every sampled "false positive" was an administrative account
+  whose owner really had been terminated. The log records deliberately planted
+  faults; 180 days of attrition produces many more real ones.
+- *The clean baseline tested the wrong property.* Asserting that a fault-free
+  estate yields zero findings failed with 114 findings, all genuine — staff
+  still leave, and their device accounts remain.
+- *Unconfirmed correlations were consumed as facts.* R1 produced 11 findings
+  resting on correlations below threshold, each naming a person the account may
+  not belong to. Gating on confirmed correlation cost 12 points of R1 recall
+  and removed every false accusation. That trade is worth stating plainly:
+  three missed leavers that sit in the adjudication queue, against eleven
+  accusations naming the wrong person.
+
+---
+
+## Phase 4 — Drift detection
+
+```bash
+python3 detect_drift.py
+```
+
+The first phase that needs time. A single snapshot can say whether a condition
+is present; drift only exists relative to a baseline, and the choice of
+baseline is the whole design.
+
+| Rule | Basis | Found | Precision | Recall |
+|---|---|---|---|---|
+| D1 Retained on transfer | observed history | 18 | 100% | 94.7% |
+| D2 Peer group outlier | peer distribution | 32 | *not scored* | — |
+| D3 Dormant entitlement | usage record | 646 | 100% | 100% |
+| D4 Standing break-glass | observed history | 11 | 100% | 100% |
+
+Three bases, never flattened together: *observed history* is deterministic and
+re-derivable from two HR extracts; *peer distribution* is statistical, capped
+at MEDIUM severity and deliberately not scored on precision because "unusual"
+has no truth set; *usage record* is factual but measured against a
+policy-chosen threshold that travels in every finding.
+
+**The volume result is the uncomfortable one.** The weakest basis produces
+almost all the output: dormancy is 91% of findings, 646 across 376 people,
+while the two deterministic rules produce 29 between them. Grading by basis is
+what makes those 29 findable.
+
+**What the build corrected.** Phase 4 exposed a defect in Phase 1: snapshots
+were written after the simulation finished, so every extract carried the final
+department and the HR feed was flat across 180 days. Zero transfers were
+observable, and phases 1–3 all read a single snapshot so nothing had caught it.
+
+Scoping by name prefix then missed the entitlements that matter — matching
+`GRP_DEPT_*` ignored every clinical role entitlement, which are
+department-specific in substance and carry far more privilege than a directory
+group. Department scoping is now learned by measuring how concentrated an
+entitlement's holders are.
+
+And recall was measured against faults the rule had declined to judge. D1 first
+scored 30%, then 60%. Both were wrong: of 70 planted retentions, 36 belonged to
+workers since terminated, and nearly all the rest had transferred inside the
+30-day grace period. Measured against what the rule claims to assess, recall is
+94.7%.
+
+One hypothesis was tested and discarded rather than written up: the low recall
+looked like snapshot cadence, so the estate was regenerated with daily instead
+of fortnightly snapshots. Recall moved from 30.5% to 32.2%. Cadence was not the
+cause.
 
 ## Phase 6 — Interpretation layer
 
@@ -500,12 +679,34 @@ same finding across runs, and none of them could be built while it was not.
 | Phase | | |
 |---|---|---|
 | 1 | Synthetic estate + ground truth | **complete** |
-| 2 | Correlation engine, cross-system identity resolution, calibrated | **complete** |
-| 3 | Reconciliation rules, six checks, scored, coverage declared | **complete** |
-| 4 | Drift detection, time-series, evidence graded by basis | **complete** |
-| 5 | Exception lifecycle, decision log and expiring suppression in the console | partly |
-| 6 | Interpretation layer, translation, clustering, certification quality | **complete** |
+| 2 | Correlation engine — cross-system identity resolution with confidence scoring | next |
+| 3 | Reconciliation and SoD rules, scored against ground truth | |
+| 4 | Drift detection — transfer-triggered creep, peer-group baselines | |
+| 5 | Exception lifecycle and suppression governance | |
+| 6 | Interpretation layer — translation, clustering, certification quality | **complete** |
 
-Phase 2 is the hard one, and is deliberately next. Everything downstream depends on
-resolving a human to their accounts across four systems when 46% of directory
-records carry no employee identifier.
+Phase 5 is partly done: the console records decisions and expires suppressions.
+Ticket handoff, aging reports and delta detection between runs are not built —
+all three were waiting on findings having a stable identity across runs, which
+they now have.
+
+---
+
+## What this is not
+
+It does not remediate. Detection and remediation are separated deliberately: an
+assurance function that fixes what it finds is no longer second-line, and loses
+the independence that makes its findings worth anything.
+
+It does not replace an IGA platform. It assumes one exists and checks whether
+its coverage is what the organisation believes it to be.
+
+It is not a machine learning system. Detection is deterministic and hand
+re-derivable throughout. Phase 6 adds an optional language model, but it only
+describes findings the deterministic rules already produced — it cannot raise
+one, suppress one, or change a score. A finding that cannot be explained to the
+person losing access is not usable, whatever its accuracy.
+
+## Licence
+
+MIT.
